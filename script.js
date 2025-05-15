@@ -18,7 +18,7 @@ function logStatus(status) {
   li.className = 'log-entry';
 
   const text = document.createElement('span');
-  text.textContent = `${formatTimestamp()}: Baby is ${status}`;
+  text.textContent = `${formatTimestamp()}: doris is ${status}`;
 
   const delBtn = document.createElement('button');
   delBtn.textContent = '×';
@@ -33,7 +33,7 @@ function logStatus(status) {
 button.addEventListener('click', () => {
   asleep = !asleep;
   const statusText = asleep ? 'asleep 💤' : 'awake 👶';
-  statusEl.textContent = `Baby is ${statusText}`;
+  statusEl.textContent = `doris is ${statusText}`;
   document.body.style.backgroundColor = asleep ? '#f0f4f8' : '#fff5f5';
   statusImage.src = asleep ? 'deer_asleep.png' : 'deer_awake.png';
   statusImage.alt = `Deer ${statusText}`;
