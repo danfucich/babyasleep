@@ -55,10 +55,11 @@ button:hover {
 }
 
 #statusImage {
-  width: 100%;
-  max-width: 300px;
-  margin: 1rem auto;
   display: block;
+  margin: 1rem auto;
+  max-width: 80%;
+  height: auto;
+  object-fit: contain;
 }
 
 .log-entry {
