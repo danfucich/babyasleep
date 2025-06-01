@@ -2,63 +2,53 @@ const statusEl = document.getElementById('status');
 const button = document.getElementById('toggleBtn');
 const logList = document.getElementById('logList');
 const statusImage = document.getElementById('statusImage');
+const summaryEl = document.getElementById('summary');
+const downloadBtn = document.getElementById('downloadLogBtn');
 
 let asleep = true;
+let logs = [];
 
-function loadState() {
-  const savedStatus = localStorage.getItem('asleep');
-  const savedLogs = JSON.parse(localStorage.getItem('logEntries') || '[]');
-
-  if (savedStatus !== null) {
-    asleep = savedStatus === 'true';
+// Load from localStorage
+function loadLogs() {
+  const savedLogs = localStorage.getItem('logEntries');
+  if (savedLogs) {
+    logs = JSON.parse(savedLogs);
   }
+}
 
-  updateDisplay();
+// Save to localStorage
+function saveLogs() {
+  localStorage.setItem('logEntries', JSON.stringify(logs));
+}
 
-  savedLogs.forEach(entry => {
-    addLogToDOM(entry, false);
+// Render all logs
+function renderLogs() {
+  logList.innerHTML = '';
+  logs.forEach((entry, index) => {
+    const li = document.createElement('li');
+    li.className = 'log-entry';
+
+    const text = document.createElement('span');
+    const date = new Date(entry.timestamp);
+    text.textContent = `${date.toLocaleString()}: Baby is ${entry.state}`;
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '×';
+    delBtn.className = 'delete-btn';
+    delBtn.onclick = () => {
+      logs.splice(index, 1);
+      saveLogs();
+      renderLogs();
+      renderSummary();
+    };
+
+    li.appendChild(text);
+    li.appendChild(delBtn);
+    logList.appendChild(li);
   });
 }
 
-function saveState() {
-  localStorage.setItem('asleep', asleep);
-}
-
-function saveLog() {
-  const entries = Array.from(logList.children).map(li => li.querySelector('span')?.textContent);
-  localStorage.setItem('logEntries', JSON.stringify(entries));
-}
-
-function formatTimestamp() {
-  const now = new Date();
-  return now.toLocaleString(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short'
-  });
-}
-
-function addLogToDOM(entry, save = true) {
-  const li = document.createElement('li');
-  li.className = 'log-entry';
-
-  const text = document.createElement('span');
-  text.textContent = entry;
-
-  const delBtn = document.createElement('button');
-  delBtn.textContent = '×';
-  delBtn.className = 'delete-btn';
-  delBtn.onclick = () => {
-    li.remove();
-    saveLog();
-  };
-
-  li.appendChild(text);
-  li.appendChild(delBtn);
-  logList.prepend(li);
-
-  if (save) saveLog();
-}
-
+// Update main display
 function updateDisplay() {
   const statusText = asleep ? 'asleep 💤' : 'awake 👶';
   statusEl.textContent = `Baby is ${statusText}`;
@@ -67,21 +57,56 @@ function updateDisplay() {
   statusImage.alt = `Deer ${statusText}`;
 }
 
-button.addEventListener('click', () => {
-  asleep = !asleep;
-  updateDisplay();
-  saveState();
+// Add a new log entry
+function addLogEntry(state) {
+  const entry = {
+    state: state,
+    timestamp: new Date().toISOString()
+  };
+  logs.push(entry);
+  saveLogs();
+  renderLogs();
+  renderSummary();
+}
 
-  const logEntry = `${formatTimestamp()}: Baby is ${asleep ? 'asleep 💤' : 'awake 👶'}`;
-  addLogToDOM(logEntry);
-});
+// Calculate and show summary
+function renderSummary() {
+  if (logs.length < 2) {
+    summaryEl.textContent = 'Not enough data to calculate summary.';
+    return;
+  }
 
-loadState();
+  let asleepTime = 0;
+  let awakeTime = 0;
 
+  for (let i = 1; i < logs.length; i++) {
+    const prev = logs[i - 1];
+    const curr = logs[i];
+    const duration = new Date(curr.timestamp) - new Date(prev.timestamp);
+    if (prev.state === 'asleep') {
+      asleepTime += duration;
+    } else {
+      awakeTime += duration;
+    }
+  }
 
-document.getElementById('downloadLogBtn').addEventListener('click', () => {
-  const entries = Array.from(logList.children).map(li => li.querySelector('span')?.textContent).join('\n');
-  const blob = new Blob([entries], { type: 'text/plain' });
+  const formatDuration = ms => {
+    const h = Math.floor(ms / (1000 * 60 * 60));
+    const m = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
+    return `${h}h ${m}m`;
+  };
+
+  summaryEl.textContent = `Total time asleep: ${formatDuration(asleepTime)} | Total time awake: ${formatDuration(awakeTime)}`;
+}
+
+// Download the log as a text file
+downloadBtn.addEventListener('click', () => {
+  const text = logs.map(l => {
+    const date = new Date(l.timestamp).toLocaleString();
+    return `${date}: Baby is ${l.state}`;
+  }).join('\n');
+
+  const blob = new Blob([text], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
 
   const a = document.createElement('a');
@@ -92,3 +117,20 @@ document.getElementById('downloadLogBtn').addEventListener('click', () => {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 });
+
+// Handle toggle
+button.addEventListener('click', () => {
+  asleep = !asleep;
+  updateDisplay();
+  addLogEntry(asleep ? 'asleep' : 'awake');
+});
+
+// Initial load
+loadLogs();
+if (logs.length > 0) {
+  const lastState = logs[logs.length - 1].state;
+  asleep = lastState === 'asleep';
+}
+updateDisplay();
+renderLogs();
+renderSummary();
